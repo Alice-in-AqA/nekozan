@@ -700,6 +700,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     mutterText:'',
     mutterLife:0,
     mutterTimer:8,
+    neighborName:'',
   };
 
   function save(){
@@ -890,16 +891,27 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   }
 
   var COMPLAINTS = [
-    "【町内会】夜、鳴き声が少し気になります。一度ご確認いただけますか。",
-    "【隣人メール】失礼します、最近ベランダに猫が…数が増えていませんか？",
+    "【{name}】夜、鳴き声が少し気になります。一度ご確認いただけますか。",
+    "【{name}】失礼します、最近ベランダに猫が…数が増えていませんか？",
     "【匿名】猫の数、把握されてますか？苦情が来ています。",
     "【管理会社】ペット飼育数について規約を確認ください。至急。",
-    "【隣人】もう毎晩眠れません。本当にどうにかしてください。",
+    "【{name}】もう毎晩眠れません。本当にどうにかしてください。",
     "【内容証明】飼育環境の是正を求めます。",
     "【役所】通報が複数件ありました。立入調査を検討します。",
-    "【隣人】…もう何も言いません。諦めました。"
+    "【{name}】…もう何も言いません。諦めました。"
   ];
   var complaintIdx = 0;
+  var NEIGHBOR_NAMES = ['田中さん','鈴木さん','佐藤さん','伊藤さん','渡辺さん','山本さん','中村さん','小林さん','加藤さん','吉田さん'];
+  function pickNeighbor(){
+    var name;
+    do{
+      name = NEIGHBOR_NAMES[Math.floor(Math.random()*NEIGHBOR_NAMES.length)];
+    }while(name === state.neighborName && NEIGHBOR_NAMES.length > 1);
+    state.neighborName = name;
+  }
+  function complaintText(idx){
+    return COMPLAINTS[idx].replace('{name}', state.neighborName || '隣人');
+  }
 
   function onStageChange(s){
     if(s === 1 && !thresholdsFired[1]){
@@ -912,8 +924,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       log('高級キャットフードが品薄に。価格が上がり始めた。', 'hot');
     }
     if(s === 4 && !thresholdsFired[4]){
-      toast(COMPLAINTS[0]);
-      log('隣人からのメールが届くようになった。', 'hot');
+      toast(complaintText(0));
+      log(state.neighborName + 'からのメールが届くようになった。', 'hot');
       elBtnMove.hidden = false;
       elBtnMove.disabled = false;
       elBtnMove.textContent = '引っ越しする（¥' + moveCost().toLocaleString('ja-JP') + '）';
@@ -1107,7 +1119,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   function handleEscape(){
     state.escapedCount++;
     state.complaintCount++;
-    toast('<b>逃げられた！</b><br>' + COMPLAINTS[Math.min(complaintIdx, COMPLAINTS.length-1)]);
+    toast('<b>逃げられた！</b><br>' + complaintText(Math.min(complaintIdx, COMPLAINTS.length-1)));
     complaintIdx = Math.min(COMPLAINTS.length-1, complaintIdx + (Math.random()<0.6?1:0));
     if(state.escapedCount<=3 || state.escapedCount%15===0){
       log('猫が1匹、外へ逃げてしまった…', 'hot');
@@ -1385,6 +1397,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     state.maxPop = 2;
     state.started = true;
     state.startedAt = Date.now();
+    pickNeighbor();
     ensureAudio();
     if(state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
     elBtnStart.disabled = true;
@@ -1485,7 +1498,9 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     var keepFired = {};
     if(thresholdsFired[8]) keepFired[8] = true;
     thresholdsFired = keepFired;
-    log('引っ越しをした。前より広い部屋で、猫は全員連れてきたけど新しい隣人はまだ何も知らない。', 'cute');
+    var prevNeighbor = state.neighborName;
+    pickNeighbor();
+    log('引っ越しをした。前より広い部屋で、猫は全員連れてきた。' + prevNeighbor + 'とはもうお別れ、新しい隣人はまだ何も知らない。', 'cute');
     toast('<b>引っ越し完了</b><br>部屋が広くなった。しばらくは余裕がありそう……');
     elBtnMove.textContent = '引っ越しする（¥' + moveCost().toLocaleString('ja-JP') + '）';
     checkAchievements();
@@ -1602,7 +1617,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         var climbChance = 0.5 / (1 + state.soundproofLevel*0.5);
         complaintIdx = Math.min(COMPLAINTS.length-1, complaintIdx + (Math.random()<climbChance?1:0));
         state.complaintCount++;
-        toast(COMPLAINTS[Math.min(complaintIdx, COMPLAINTS.length-1)]);
+        toast(complaintText(Math.min(complaintIdx, COMPLAINTS.length-1)));
       }
     }
 
