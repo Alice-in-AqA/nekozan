@@ -421,6 +421,14 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   padding:3px 9px;
   font-size:11px;
 }
+.danger-btn{
+  margin-top:10px;
+  font-size:11.5px;
+  color:var(--danger);
+  border-color:var(--danger);
+  background:transparent;
+  align-self:flex-start;
+}
 
 .hint{
   text-align:center;
@@ -771,6 +779,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
             <ol id="globalRanking" class="ranking">
               <li class="ranking-empty">読み込み中…</li>
             </ol>
+            <button id="btnResetRanking" class="danger-btn">自分の記録をリセットする</button>
           </div>
 
           <div class="tab-pane" data-pane="keymap">
@@ -931,6 +940,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   var elNicknameForm = document.getElementById('nicknameForm');
   var elNicknameInput = document.getElementById('nicknameInput');
   var elBtnSetNickname = document.getElementById('btnSetNickname');
+  var elBtnResetRanking = document.getElementById('btnResetRanking');
   var elNicknameCurrent = document.getElementById('nicknameCurrent');
   var elBtnMute = document.getElementById('btnMute');
   var elBtnRestart = document.getElementById('btnRestart');
@@ -1339,6 +1349,31 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   });
   elNicknameInput.addEventListener('keydown', function(e){
     if(e.key === 'Enter') elBtnSetNickname.click();
+  });
+
+  elBtnResetRanking.addEventListener('click', function(){
+    var ok = window.confirm('自己ベスト・履歴・グローバルランキングに送信した自分の記録をすべて削除します。よろしいですか？（元に戻せません）');
+    if(!ok) return;
+    try{ localStorage.removeItem(BEST_KEY); }catch(e){}
+    try{ localStorage.removeItem(HISTORY_KEY); }catch(e){}
+    renderBestRecord();
+    renderRanking(-1);
+    elBtnResetRanking.disabled = true;
+    elBtnResetRanking.textContent = 'リセット中…';
+    withRanking(function(rk){
+      if(!rk.deleteScore){ elBtnResetRanking.disabled = false; elBtnResetRanking.textContent = '自分の記録をリセットする'; return; }
+      rk.deleteScore().then(function(){
+        refreshGlobalRanking();
+        refreshWorldTotal();
+        elBtnResetRanking.disabled = false;
+        elBtnResetRanking.textContent = '自分の記録をリセットする';
+        toast('🗑️ <b>リセット完了</b><br>記録をすべて削除しました。');
+      }).catch(function(){
+        elBtnResetRanking.disabled = false;
+        elBtnResetRanking.textContent = '自分の記録をリセットする';
+        toast('リセットに失敗しました（グローバル側）。もう一度お試しください。');
+      });
+    });
   });
 
   var RARITY_LABEL = {common:'コモン', rare:'レア', epic:'激レア'};
@@ -2613,7 +2648,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, getAggregateFromServer, sum } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs, getAggregateFromServer, sum } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAw2Jff2yeSZm2PkHShBHwA37A-1d1TvBk",
@@ -2660,6 +2695,10 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       var q = query(collection(db, 'scores'));
       var snap = await getAggregateFromServer(q, { total: sum('survived') });
       return snap.data().total;
+    },
+    async deleteScore(){
+      var user = await authReady;
+      await deleteDoc(doc(db, 'scores', user.uid));
     }
   };
 </script>
