@@ -54,6 +54,34 @@ body{
   flex-direction:column;
   gap:14px;
 }
+.game-layout{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
+  align-items:start;
+}
+.game-visual{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.game-controls{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0;
+}
+@media (min-width:900px){
+  .wrap{max-width:1180px;}
+  .game-layout{
+    grid-template-columns:minmax(360px,560px) minmax(360px,1fr);
+  }
+  .game-visual{
+    position:sticky;
+    top:12px;
+    align-self:start;
+  }
+}
 h1{
   font-family:'Kiwi Maru',serif;
   font-size:clamp(28px,5vw,40px);
@@ -492,63 +520,69 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     <div class="tile"><div class="label">増加抑制</div><div class="value" id="statNeuter">-0%</div></div>
   </div>
 
-  <div class="stage">
-    <canvas id="room" width="960" height="540"></canvas>
-    <div class="stage-label" id="stageLabel">STAGE 0 — 静かな部屋</div>
-    <div class="next-stage" id="nextStageHint"></div>
-    <div class="overflow-badge" id="overflowBadge"></div>
+  <div class="game-layout">
+    <div class="game-visual">
+      <div class="stage">
+        <canvas id="room" width="960" height="540"></canvas>
+        <div class="stage-label" id="stageLabel">STAGE 0 — 静かな部屋</div>
+        <div class="next-stage" id="nextStageHint"></div>
+        <div class="overflow-badge" id="overflowBadge"></div>
+      </div>
+      <div class="hint" id="roomHint">🐾 猫をクリックでなでる／脱走した猫は出口に着く前にクリックで捕獲／✨が出たら見逃さずに</div>
+    </div>
+
+    <div class="game-controls">
+      <div class="speed-row">
+        <span>再生速度</span>
+        <button class="speedBtn active" data-speed="1">×1</button>
+        <button class="speedBtn" data-speed="2">×2</button>
+        <button class="speedBtn" data-speed="5">×5</button>
+        <button id="btnMute" class="muteBtn" style="margin-left:auto;">🔊 音あり</button>
+      </div>
+
+      <div class="controls">
+        <button class="primary" id="btnStart">最初のツガイを迎える（¥3,000）</button>
+        <button id="btnFeedUp" disabled>奮発しておやつをあげる（¥500・少しだけ機嫌が良くなる）</button>
+        <button id="btnNeuter" disabled>避妊・去勢手術を受けさせる（¥1,500）</button>
+        <button id="btnCafe" disabled>保護猫カフェを開業する（¥5,000）</button>
+        <button id="btnCafeUpgrade" disabled hidden>カフェに投資する（¥4,000）</button>
+        <button id="btnSNS" disabled>猫SNSに投稿する（¥0）</button>
+        <button id="btnSoundproof" disabled>防音材を追加する（¥800）</button>
+        <button id="btnMove" disabled hidden>引っ越しする（¥5,000）</button>
+      </div>
+
+      <div class="panels">
+        <div class="panel">
+          <h2>名付け</h2>
+          <div id="nameRow">
+            <input id="nameInput" placeholder="最新の子の名前（例：タマ）" maxlength="12" disabled>
+            <button id="btnName" disabled>つける</button>
+          </div>
+          <button id="btnNameAll" disabled>全部の猫に名前をつける</button>
+          <div class="progress"><div id="nameProgress"></div></div>
+          <div style="font-size:11px;color:var(--muted)" id="nameStatus">まだ誰も生まれていません。</div>
+          <div class="roster-label">名簿（新しい順）</div>
+          <ul id="roster" class="roster"></ul>
+        </div>
+
+        <div class="panel">
+          <h2>できごとログ</h2>
+          <ul id="log"></ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>称号</h2>
+        <div class="badges-wrap" id="badges"></div>
+      </div>
+    </div>
   </div>
-  <div class="hint" id="roomHint">🐾 猫をクリックでなでる／脱走した猫は出口に着く前にクリックで捕獲／✨が出たら見逃さずに</div>
 
   <div class="event-card" id="eventCard" hidden>
     <div class="ec-timer"><div id="eventTimerBar"></div></div>
     <div class="ec-title" id="eventTitle"></div>
     <div class="ec-desc" id="eventDesc"></div>
     <div class="ec-choices" id="eventChoices"></div>
-  </div>
-
-  <div class="speed-row">
-    <span>再生速度</span>
-    <button class="speedBtn active" data-speed="1">×1</button>
-    <button class="speedBtn" data-speed="2">×2</button>
-    <button class="speedBtn" data-speed="5">×5</button>
-    <button id="btnMute" class="muteBtn" style="margin-left:auto;">🔊 音あり</button>
-  </div>
-
-  <div class="controls">
-    <button class="primary" id="btnStart">最初のツガイを迎える（¥3,000）</button>
-    <button id="btnFeedUp" disabled>奮発しておやつをあげる（¥500・少しだけ機嫌が良くなる）</button>
-    <button id="btnNeuter" disabled>避妊・去勢手術を受けさせる（¥1,500）</button>
-    <button id="btnCafe" disabled>保護猫カフェを開業する（¥5,000）</button>
-    <button id="btnCafeUpgrade" disabled hidden>カフェに投資する（¥4,000）</button>
-    <button id="btnSNS" disabled>猫SNSに投稿する（¥0）</button>
-    <button id="btnSoundproof" disabled>防音材を追加する（¥800）</button>
-    <button id="btnMove" disabled hidden>引っ越しする（¥5,000）</button>
-  </div>
-
-  <div class="panels">
-    <div class="panel">
-      <h2>名付け</h2>
-      <div id="nameRow">
-        <input id="nameInput" placeholder="最新の子の名前（例：タマ）" maxlength="12" disabled>
-        <button id="btnName" disabled>つける</button>
-      </div>
-      <button id="btnNameAll" disabled>全部の猫に名前をつける</button>
-      <div class="progress"><div id="nameProgress"></div></div>
-      <div style="font-size:11px;color:var(--muted)" id="nameStatus">まだ誰も生まれていません。</div>
-      <div class="roster-label">名簿（新しい順）</div>
-      <ul id="roster" class="roster"></ul>
-    </div>
-
-    <div class="panel">
-      <h2>できごとログ</h2>
-      <ul id="log"></ul>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>称号</h2>
-    <div class="badges-wrap" id="badges"></div>
   </div>
 </div>
 
