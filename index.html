@@ -103,6 +103,12 @@ h1{
   font-size:12px;
   margin-top:4px;
 }
+.world-total{
+  text-align:center;
+  color:var(--good);
+  font-size:12px;
+  margin-top:4px;
+}
 .intro-hint{
   text-align:center;
   color:var(--muted);
@@ -620,6 +626,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     <div class="sub">ねこざん — ツガイを迎えて、あとは見守るだけ。……のはずだった。</div>
     <div class="intro-hint">見た目はかわいい。でもこれは、指数関数の話です。行き着く先はひとつだけ。</div>
     <div class="best-record" id="bestRecord" hidden></div>
+    <div class="world-total" id="worldTotal" hidden></div>
   </div>
 
   <div class="stats">
@@ -848,6 +855,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   var elEventDesc = document.getElementById('eventDesc');
   var elEventChoices = document.getElementById('eventChoices');
   var elBestRecord = document.getElementById('bestRecord');
+  var elWorldTotal = document.getElementById('worldTotal');
   var elRoster = document.getElementById('roster');
   var elRanking = document.getElementById('ranking');
   var elGlobalRanking = document.getElementById('globalRanking');
@@ -1225,6 +1233,16 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       });
     });
   }
+  function refreshWorldTotal(){
+    withRanking(function(rk){
+      if(!rk.fetchWorldTotal) return;
+      rk.fetchWorldTotal().then(function(total){
+        if(total === null || total === undefined) return;
+        elWorldTotal.hidden = false;
+        elWorldTotal.textContent = '🌍 世界のプレイヤーの自己ベスト合計: ' + fmtNum(total) + ' 匹（あなたの記録も含む）';
+      }).catch(function(){});
+    });
+  }
   function submitGlobalScore(entry){
     var n = loadNickname();
     if(!n) return;
@@ -1233,7 +1251,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         nickname: n, maxPop: entry.maxPop, survived: entry.survived,
         totalEarned: entry.totalEarned, at: entry.at
       }).then(function(improved){
-        if(improved) refreshGlobalRanking();
+        if(improved){ refreshGlobalRanking(); refreshWorldTotal(); }
       }).catch(function(){});
     });
   }
@@ -2363,6 +2381,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     renderRanking(-1);
     renderNicknameUI();
     refreshGlobalRanking();
+    refreshWorldTotal();
     updateHUD();
     requestAnimationFrame(frame);
   }
@@ -2383,7 +2402,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, getAggregateFromServer, sum } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAw2Jff2yeSZm2PkHShBHwA37A-1d1TvBk",
@@ -2425,6 +2444,11 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       var list = [];
       snaps.forEach(function(d){ list.push(d.data()); });
       return list;
+    },
+    async fetchWorldTotal(){
+      var q = query(collection(db, 'scores'));
+      var snap = await getAggregateFromServer(q, { total: sum('maxPop') });
+      return snap.data().total;
     }
   };
 </script>
