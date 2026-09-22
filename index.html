@@ -420,9 +420,6 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   margin-top:-6px;
 }
 
-.keymap-panel{
-  padding:12px 14px;
-}
 .keymap{
   display:flex;
   flex-direction:column;
@@ -446,6 +443,56 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   flex-shrink:0;
   color:var(--accent);
 }
+
+.tab-panel{
+  padding:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.tab-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px;
+  padding:10px 10px 0;
+  flex-shrink:0;
+}
+.tabBtn{
+  padding:7px 11px;
+  font-size:12px;
+  background:transparent;
+  border:1px solid transparent;
+  border-bottom:none;
+  border-radius:8px 8px 0 0;
+  color:var(--muted);
+}
+.tabBtn.active{
+  background:var(--bg);
+  border-color:var(--panel-line);
+  color:var(--accent);
+  font-weight:700;
+}
+.tab-content{
+  border-top:1px solid var(--panel-line);
+  background:var(--bg);
+  padding:14px;
+  max-height:min(46vh, 420px);
+  overflow-y:auto;
+}
+.tab-pane{
+  display:none;
+  flex-direction:column;
+  gap:8px;
+}
+.tab-pane.active{ display:flex; }
+.tab-pane h3{
+  font-size:11px;
+  color:var(--muted);
+  letter-spacing:.05em;
+  margin:6px 0 0;
+}
+.tab-pane h3:first-child{ margin-top:0; }
 
 .speed-row{
   display:flex;
@@ -650,18 +697,6 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     </div>
 
     <div class="game-controls">
-      <div class="panel keymap-panel">
-        <h2>操作方法</h2>
-        <div class="keymap">
-          <div class="key-row"><span class="key">W A S D</span><span>カーソル移動</span></div>
-          <div class="key-row"><span class="key">Space</span><span>なでる／脱走猫を捕獲</span></div>
-          <div class="key-row"><span class="key">Q</span><span>猫SNSに投稿</span></div>
-          <div class="key-row"><span class="key">E</span><span>カフェを開業／投資</span></div>
-          <div class="key-row"><span class="key">F</span><span>避妊・去勢手術</span></div>
-          <div class="key-row"><span class="key">R</span><span>防音材を追加</span></div>
-        </div>
-      </div>
-
       <div class="speed-row">
         <span>再生速度</span>
         <button class="speedBtn active" data-speed="1">×1</button>
@@ -681,48 +716,65 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         <button id="btnMove" disabled hidden>引っ越しする（¥5,000）</button>
       </div>
 
-      <div class="panels">
-        <div class="panel">
-          <h2>名付け</h2>
-          <div id="nameRow">
-            <input id="nameInput" placeholder="最新の子の名前（例：タマ）" maxlength="12" disabled>
-            <button id="btnName" disabled>つける</button>
+      <div class="panel tab-panel">
+        <div class="tab-bar">
+          <button class="tabBtn active" data-tab="naming">名付け</button>
+          <button class="tabBtn" data-tab="log">ログ</button>
+          <button class="tabBtn" data-tab="badges">称号</button>
+          <button class="tabBtn" data-tab="ranking">ランキング</button>
+          <button class="tabBtn" data-tab="keymap">操作方法</button>
+        </div>
+
+        <div class="tab-content">
+          <div class="tab-pane active" data-pane="naming">
+            <div id="nameRow">
+              <input id="nameInput" placeholder="最新の子の名前（例：タマ）" maxlength="12" disabled>
+              <button id="btnName" disabled>つける</button>
+            </div>
+            <button id="btnNameAll" disabled>全部の猫に名前をつける</button>
+            <div class="progress"><div id="nameProgress"></div></div>
+            <div style="font-size:11px;color:var(--muted)" id="nameStatus">まだ誰も生まれていません。</div>
+            <div class="roster-label">名簿（新しい順）</div>
+            <ul id="roster" class="roster"></ul>
           </div>
-          <button id="btnNameAll" disabled>全部の猫に名前をつける</button>
-          <div class="progress"><div id="nameProgress"></div></div>
-          <div style="font-size:11px;color:var(--muted)" id="nameStatus">まだ誰も生まれていません。</div>
-          <div class="roster-label">名簿（新しい順）</div>
-          <ul id="roster" class="roster"></ul>
+
+          <div class="tab-pane" data-pane="log">
+            <ul id="log"></ul>
+          </div>
+
+          <div class="tab-pane" data-pane="badges">
+            <div class="badges-wrap" id="badges"></div>
+          </div>
+
+          <div class="tab-pane" data-pane="ranking">
+            <h3>自己記録 上位10件</h3>
+            <ol id="ranking" class="ranking">
+              <li class="ranking-empty">まだ記録がありません。まずは1回、最後まで見届けよう。</li>
+            </ol>
+            <h3>グローバルランキング 上位20件</h3>
+            <div id="nicknameForm" class="nickname-form">
+              <input id="nicknameInput" placeholder="ニックネーム（12文字まで）" maxlength="12">
+              <button id="btnSetNickname">これで参加する</button>
+            </div>
+            <div id="nicknameCurrent" class="nickname-current" hidden></div>
+            <ol id="globalRanking" class="ranking">
+              <li class="ranking-empty">読み込み中…</li>
+            </ol>
+          </div>
+
+          <div class="tab-pane" data-pane="keymap">
+            <div class="keymap">
+              <div class="key-row"><span class="key">W A S D</span><span>カーソル移動</span></div>
+              <div class="key-row"><span class="key">Space</span><span>なでる／脱走猫を捕獲</span></div>
+              <div class="key-row"><span class="key">Q</span><span>猫SNSに投稿</span></div>
+              <div class="key-row"><span class="key">E</span><span>カフェを開業／投資</span></div>
+              <div class="key-row"><span class="key">F</span><span>避妊・去勢手術</span></div>
+              <div class="key-row"><span class="key">R</span><span>防音材を追加</span></div>
+              <div class="key-row"><span class="key">🖱️</span><span>猫クリックでなでる</span></div>
+              <div class="key-row"><span class="key">🖱️ドラッグ</span><span>エサ皿を移動／複数の猫を連続でなでる／猫をつまんで整頓</span></div>
+            </div>
+          </div>
         </div>
-
-        <div class="panel">
-          <h2>できごとログ</h2>
-          <ul id="log"></ul>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>称号</h2>
-        <div class="badges-wrap" id="badges"></div>
-      </div>
-
-      <div class="panel">
-        <h2>ランキング（自己記録 上位10件）</h2>
-        <ol id="ranking" class="ranking">
-          <li class="ranking-empty">まだ記録がありません。まずは1回、最後まで見届けよう。</li>
-        </ol>
-      </div>
-
-      <div class="panel">
-        <h2>グローバルランキング（上位20件）</h2>
-        <div id="nicknameForm" class="nickname-form">
-          <input id="nicknameInput" placeholder="ニックネーム（12文字まで）" maxlength="12">
-          <button id="btnSetNickname">これで参加する</button>
-        </div>
-        <div id="nicknameCurrent" class="nickname-current" hidden></div>
-        <ol id="globalRanking" class="ranking">
-          <li class="ranking-empty">読み込み中…</li>
-        </ol>
       </div>
     </div>
   </div>
@@ -2465,6 +2517,19 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       state.speed = parseFloat(this.dataset.speed);
       for(var j=0; j<speedButtons.length; j++){ speedButtons[j].classList.remove('active'); }
       this.classList.add('active');
+    });
+  }
+
+  var tabButtons = document.querySelectorAll('.tabBtn');
+  var tabPanes = document.querySelectorAll('.tab-pane');
+  for(var tbi=0; tbi<tabButtons.length; tbi++){
+    tabButtons[tbi].addEventListener('click', function(){
+      var target = this.dataset.tab;
+      for(var j=0; j<tabButtons.length; j++){ tabButtons[j].classList.remove('active'); }
+      this.classList.add('active');
+      for(var k=0; k<tabPanes.length; k++){
+        tabPanes[k].classList.toggle('active', tabPanes[k].dataset.pane === target);
+      }
     });
   }
 
