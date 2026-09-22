@@ -589,8 +589,13 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 .crash.show{display:block;}
 .crash h2{font-size:20px;margin:0 0 16px;}
 .crash pre{white-space:pre-wrap;line-height:1.6;font-size:13px;}
-.crash button{
+.crash-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
   margin-top:24px;
+}
+.crash button{
   background:#fff;
   color:#001a99;
   border:none;
@@ -731,7 +736,10 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   <h2>Neko.exe は応答していません</h2>
   <pre id="crashText"></pre>
   <div class="crash-stats" id="crashStats" hidden></div>
-  <button id="btnRestart">最初からやり直す</button>
+  <div class="crash-actions">
+    <button id="btnShareImage" hidden>結果画像を保存</button>
+    <button id="btnRestart">最初からやり直す</button>
+  </div>
 </div>
 
 <script>
@@ -849,6 +857,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   var elNicknameCurrent = document.getElementById('nicknameCurrent');
   var elBtnMute = document.getElementById('btnMute');
   var elBtnRestart = document.getElementById('btnRestart');
+  var elBtnShareImage = document.getElementById('btnShareImage');
   var elBtnCafe = document.getElementById('btnCafe');
   var elBtnCafeUpgrade = document.getElementById('btnCafeUpgrade');
   var elBtnSNS = document.getElementById('btnSNS');
@@ -1146,6 +1155,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   // ---------- global ranking (Firebase) ----------
   var NICKNAME_KEY = 'nekozan_nickname';
   var lastResultEntry = null;
+  var lastRankIdx = -1;
   function loadNickname(){
     try{ return localStorage.getItem(NICKNAME_KEY) || ''; }catch(e){ return ''; }
   }
@@ -2170,7 +2180,9 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     }
     renderRanking(rankIdx);
     lastResultEntry = {maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: Date.now()};
+    lastRankIdx = rankIdx;
     submitGlobalScore(lastResultEntry);
+    elBtnShareImage.hidden = false;
     var rows = [
       ['最大匹数', fmtNum(state.maxPop) + ' 匹'],
       ['プレイ時間', formatDuration(elapsed)],
@@ -2195,6 +2207,109 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 
   elBtnRestart.addEventListener('click', function(){
     location.reload();
+  });
+
+  function wrapText(c, text, x, y, maxWidth, lineHeight){
+    var line = '';
+    var yy = y;
+    for(var i=0;i<text.length;i++){
+      var test = line + text[i];
+      if(c.measureText(test).width > maxWidth && line){
+        c.fillText(line, x, yy);
+        line = text[i];
+        yy += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    if(line) c.fillText(line, x, yy);
+    return yy;
+  }
+
+  function generateResultImage(){
+    var cw = 1200, ch = 630;
+    var canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    var c = canvas.getContext('2d');
+
+    var grad = c.createLinearGradient(0,0,0,ch);
+    grad.addColorStop(0, '#2a1c14');
+    grad.addColorStop(1, '#140d09');
+    c.fillStyle = grad;
+    c.fillRect(0,0,cw,ch);
+
+    c.globalAlpha = 0.14;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.font = '110px sans-serif';
+    c.fillText('🐱', 110, 90);
+    c.fillText('🐱', cw-110, ch-90);
+    c.font = '70px sans-serif';
+    c.fillText('🐾', cw-100, 90);
+    c.globalAlpha = 1;
+
+    c.textAlign = 'center';
+    c.fillStyle = '#ff9d4d';
+    c.font = "bold 60px 'Zen Maru Gothic', sans-serif";
+    c.fillText('猫算', cw/2, 78);
+
+    c.fillStyle = '#a68f7a';
+    c.font = '18px sans-serif';
+    c.fillText('プレイ記録', cw/2, 116);
+
+    c.fillStyle = '#f4e8d8';
+    c.font = 'bold 84px sans-serif';
+    c.fillText(fmtNum(state.maxPop) + ' 匹', cw/2, 236);
+
+    c.fillStyle = '#ffb6c1';
+    c.font = '17px sans-serif';
+    c.fillText('最大匹数', cw/2, 284);
+
+    var elapsedNow = state.startedAt ? (Date.now() - state.startedAt)/1000 : 0;
+    var statCols = [
+      ['プレイ時間', formatDuration(elapsedNow)],
+      ['称号', Object.keys(unlocked).length + ' / ' + ACHIEVEMENTS.length],
+      ['自己ランキング', lastRankIdx >= 0 ? ('#' + (lastRankIdx+1)) : '圏外']
+    ];
+    var colW = cw / statCols.length;
+    for(var i=0;i<statCols.length;i++){
+      var x = colW*i + colW/2;
+      c.fillStyle = '#a68f7a';
+      c.font = '15px sans-serif';
+      c.fillText(statCols[i][0], x, 350);
+      c.fillStyle = '#f4e8d8';
+      c.font = 'bold 26px sans-serif';
+      c.fillText(statCols[i][1], x, 384);
+    }
+
+    c.fillStyle = 'rgba(244,232,216,0.8)';
+    c.font = "italic 19px 'Zen Maru Gothic', sans-serif";
+    wrapText(c, computeFinalFlavor(), cw/2, 460, cw-200, 28);
+
+    var nick = loadNickname();
+    if(nick){
+      c.fillStyle = '#ff9d4d';
+      c.font = '16px sans-serif';
+      c.fillText(nick + ' の記録', cw/2, 552);
+    }
+
+    c.fillStyle = '#a68f7a';
+    c.font = '14px sans-serif';
+    c.fillText('見た目はかわいい。でもこれは、指数関数の話です。', cw/2, ch-46);
+    c.fillText('alice-in-aqa.github.io/nekozan', cw/2, ch-22);
+
+    return canvas;
+  }
+
+  elBtnShareImage.addEventListener('click', function(){
+    var canvas = generateResultImage();
+    var url = canvas.toDataURL('image/png');
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'nekozan-result.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   });
 
   for(var sbi=0; sbi<speedButtons.length; sbi++){
