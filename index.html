@@ -369,6 +369,43 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   text-align:right;
   white-space:nowrap;
 }
+.ranking .rname{
+  font-weight:600;
+  max-width:9em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.nickname-form{
+  display:flex;
+  gap:6px;
+  margin-bottom:8px;
+}
+.nickname-form input{
+  flex:1;
+  min-width:0;
+  background:var(--bg);
+  border:1px solid var(--panel-line);
+  color:var(--text);
+  border-radius:8px;
+  padding:8px 10px;
+  font-family:inherit;
+  font-size:13px;
+}
+.nickname-current{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.nickname-current b{color:var(--accent);}
+.nickname-current button{
+  padding:3px 9px;
+  font-size:11px;
+}
 
 .hint{
   text-align:center;
@@ -663,6 +700,18 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
           <li class="ranking-empty">まだ記録がありません。まずは1回、最後まで見届けよう。</li>
         </ol>
       </div>
+
+      <div class="panel">
+        <h2>グローバルランキング（上位20件）</h2>
+        <div id="nicknameForm" class="nickname-form">
+          <input id="nicknameInput" placeholder="ニックネーム（12文字まで）" maxlength="12">
+          <button id="btnSetNickname">これで参加する</button>
+        </div>
+        <div id="nicknameCurrent" class="nickname-current" hidden></div>
+        <ol id="globalRanking" class="ranking">
+          <li class="ranking-empty">読み込み中…</li>
+        </ol>
+      </div>
     </div>
   </div>
 
@@ -793,6 +842,11 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   var elBestRecord = document.getElementById('bestRecord');
   var elRoster = document.getElementById('roster');
   var elRanking = document.getElementById('ranking');
+  var elGlobalRanking = document.getElementById('globalRanking');
+  var elNicknameForm = document.getElementById('nicknameForm');
+  var elNicknameInput = document.getElementById('nicknameInput');
+  var elBtnSetNickname = document.getElementById('btnSetNickname');
+  var elNicknameCurrent = document.getElementById('nicknameCurrent');
   var elBtnMute = document.getElementById('btnMute');
   var elBtnRestart = document.getElementById('btnRestart');
   var elBtnCafe = document.getElementById('btnCafe');
@@ -1089,6 +1143,101 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       elRanking.appendChild(li);
     }
   }
+  // ---------- global ranking (Firebase) ----------
+  var NICKNAME_KEY = 'nekozan_nickname';
+  var lastResultEntry = null;
+  function loadNickname(){
+    try{ return localStorage.getItem(NICKNAME_KEY) || ''; }catch(e){ return ''; }
+  }
+  function saveNickname(n){
+    try{ localStorage.setItem(NICKNAME_KEY, n); }catch(e){}
+  }
+  function renderNicknameUI(){
+    var n = loadNickname();
+    if(n){
+      elNicknameForm.hidden = true;
+      elNicknameCurrent.hidden = false;
+      elNicknameCurrent.innerHTML = '';
+      var span = document.createElement('span');
+      span.textContent = 'ニックネーム: ';
+      var b = document.createElement('b');
+      b.textContent = n;
+      var btn = document.createElement('button');
+      btn.textContent = '変更';
+      btn.addEventListener('click', function(){
+        elNicknameForm.hidden = false;
+        elNicknameCurrent.hidden = true;
+        elNicknameInput.value = n;
+        elNicknameInput.focus();
+      });
+      elNicknameCurrent.appendChild(span);
+      elNicknameCurrent.appendChild(b);
+      elNicknameCurrent.appendChild(btn);
+    } else {
+      elNicknameForm.hidden = false;
+      elNicknameCurrent.hidden = true;
+    }
+  }
+  function withRanking(fn, triesLeft){
+    if(window.NekoRanking){ fn(window.NekoRanking); return; }
+    if(triesLeft === undefined) triesLeft = 40;
+    if(triesLeft <= 0) return;
+    setTimeout(function(){ withRanking(fn, triesLeft-1); }, 150);
+  }
+  function renderGlobalRanking(list){
+    if(!list || !list.length){
+      elGlobalRanking.innerHTML = '<li class="ranking-empty">まだ誰も参加していません。最初の一人になろう。</li>';
+      return;
+    }
+    elGlobalRanking.innerHTML = '';
+    for(var i=0;i<list.length;i++){
+      var r = list[i];
+      var li = document.createElement('li');
+      var rank = document.createElement('span');
+      rank.className = 'rank';
+      rank.textContent = '#' + (i+1);
+      var name = document.createElement('span');
+      name.className = 'rname';
+      name.textContent = r.nickname || '名無し';
+      var pop = document.createElement('span');
+      pop.className = 'rpop';
+      pop.textContent = fmtNum(r.maxPop) + ' 匹';
+      li.appendChild(rank);
+      li.appendChild(name);
+      li.appendChild(pop);
+      elGlobalRanking.appendChild(li);
+    }
+  }
+  function refreshGlobalRanking(){
+    withRanking(function(rk){
+      rk.fetchTop(20).then(renderGlobalRanking).catch(function(){
+        elGlobalRanking.innerHTML = '<li class="ranking-empty">読み込みに失敗しました。</li>';
+      });
+    });
+  }
+  function submitGlobalScore(entry){
+    var n = loadNickname();
+    if(!n) return;
+    withRanking(function(rk){
+      rk.submitScore({
+        nickname: n, maxPop: entry.maxPop, survived: entry.survived,
+        totalEarned: entry.totalEarned, at: entry.at
+      }).then(function(improved){
+        if(improved) refreshGlobalRanking();
+      }).catch(function(){});
+    });
+  }
+  elBtnSetNickname.addEventListener('click', function(){
+    var v = elNicknameInput.value.trim();
+    if(!v) return;
+    saveNickname(v);
+    renderNicknameUI();
+    if(lastResultEntry) submitGlobalScore(lastResultEntry);
+  });
+  elNicknameInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter') elBtnSetNickname.click();
+  });
+
   var RARITY_LABEL = {common:'コモン', rare:'レア', epic:'激レア'};
   var CATEGORIES = ['基本','経営','対策','やり込み'];
   function renderBadges(){
@@ -2020,6 +2169,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       if(historyList[hi].maxPop === state.maxPop){ rankIdx = hi; break; }
     }
     renderRanking(rankIdx);
+    lastResultEntry = {maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: Date.now()};
+    submitGlobalScore(lastResultEntry);
     var rows = [
       ['最大匹数', fmtNum(state.maxPop) + ' 匹'],
       ['プレイ時間', formatDuration(elapsed)],
@@ -2030,7 +2181,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       ['避妊・去勢手術', state.neuterLevel + ' 回'],
       ['引っ越し回数', state.moveCount + ' 回'],
       ['称号', Object.keys(unlocked).length + ' / ' + ACHIEVEMENTS.length + ' 個獲得（次回も引き継がれます）' + (state.legendary ? ' ★全制覇' : '')],
-      ['自己ランキング', rankIdx >= 0 ? ('#' + (rankIdx+1) + ' / ' + historyList.length) : '圏外（上位' + HISTORY_CAP + '件に入らず）']
+      ['自己ランキング', rankIdx >= 0 ? ('#' + (rankIdx+1) + ' / ' + historyList.length) : '圏外（上位' + HISTORY_CAP + '件に入らず）'],
+      ['グローバル参加', loadNickname() ? (loadNickname() + ' として送信済み') : '未参加（右のパネルでニックネーム登録を）']
     ];
     var html = '<div style="font-weight:700;margin-bottom:6px;">最終記録' + (isNewBest ? '<span style="color:#ffd35c;"> ★自己ベスト更新！</span>' : '') + '</div>';
     for(var r=0;r<rows.length;r++){
@@ -2094,6 +2246,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     }
     renderBadges();
     renderRanking(-1);
+    renderNicknameUI();
+    refreshGlobalRanking();
     updateHUD();
     requestAnimationFrame(frame);
   }
@@ -2109,4 +2263,53 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   }catch(e){ boot(); }
 
 })();
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAw2Jff2yeSZm2PkHShBHwA37A-1d1TvBk",
+    authDomain: "nekozan-ranking.firebaseapp.com",
+    projectId: "nekozan-ranking",
+    storageBucket: "nekozan-ranking.firebasestorage.app",
+    messagingSenderId: "426879848867",
+    appId: "1:426879848867:web:a71656c6400a7c43cf0a16"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const authReady = new Promise(function(resolve, reject){
+    onAuthStateChanged(auth, function(user){
+      if(user) resolve(user);
+    });
+    signInAnonymously(auth).catch(function(err){
+      console.error('猫算: 匿名ログインに失敗しました', err);
+      reject(err);
+    });
+  });
+
+  window.NekoRanking = {
+    async submitScore(entry){
+      var user = await authReady;
+      var ref = doc(db, 'scores', user.uid);
+      var snap = await getDoc(ref);
+      if(!snap.exists() || entry.maxPop > snap.data().maxPop){
+        await setDoc(ref, entry);
+        return true;
+      }
+      return false;
+    },
+    async fetchTop(n){
+      var q = query(collection(db, 'scores'), orderBy('maxPop', 'desc'), limit(n || 20));
+      var snaps = await getDocs(q);
+      var list = [];
+      snaps.forEach(function(d){ list.push(d.data()); });
+      return list;
+    }
+  };
 </script>
