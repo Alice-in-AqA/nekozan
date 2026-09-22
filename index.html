@@ -328,6 +328,48 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   opacity:.7;
 }
 
+.ranking{
+  list-style:none;
+  margin:0;padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.ranking li{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  padding:7px 10px;
+  border:1px solid var(--panel-line);
+  border-radius:10px;
+  font-size:12.5px;
+}
+.ranking li.current{
+  border-color:var(--accent);
+  background:rgba(255,157,77,.08);
+}
+.ranking li.ranking-empty{
+  color:var(--muted);
+  border-style:dashed;
+}
+.ranking .rank{
+  font-weight:700;
+  color:var(--accent);
+  width:1.8em;
+  flex-shrink:0;
+}
+.ranking .rpop{
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.ranking .rmeta{
+  color:var(--muted);
+  font-size:11px;
+  margin-left:auto;
+  text-align:right;
+  white-space:nowrap;
+}
+
 .hint{
   text-align:center;
   font-size:11.5px;
@@ -575,6 +617,13 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         <h2>称号</h2>
         <div class="badges-wrap" id="badges"></div>
       </div>
+
+      <div class="panel">
+        <h2>ランキング（自己記録 上位10件）</h2>
+        <ol id="ranking" class="ranking">
+          <li class="ranking-empty">まだ記録がありません。まずは1回、最後まで見届けよう。</li>
+        </ol>
+      </div>
     </div>
   </div>
 
@@ -701,6 +750,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   var elEventChoices = document.getElementById('eventChoices');
   var elBestRecord = document.getElementById('bestRecord');
   var elRoster = document.getElementById('roster');
+  var elRanking = document.getElementById('ranking');
   var elBtnMute = document.getElementById('btnMute');
   var elBtnRestart = document.getElementById('btnRestart');
   var elBtnCafe = document.getElementById('btnCafe');
@@ -946,6 +996,45 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         localStorage.setItem(BEST_KEY, JSON.stringify(entry));
       }
     }catch(e){}
+  }
+
+  var HISTORY_KEY = 'nekozan_history';
+  var HISTORY_CAP = 10;
+  function loadHistory(){
+    try{
+      var raw = localStorage.getItem(HISTORY_KEY);
+      if(!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function addHistoryEntry(entry){
+    try{
+      var list = loadHistory();
+      list.push(entry);
+      list.sort(function(a,b){ return b.maxPop - a.maxPop; });
+      list = list.slice(0, HISTORY_CAP);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+      return list;
+    }catch(e){ return loadHistory(); }
+  }
+  function renderRanking(highlightAt){
+    var list = loadHistory();
+    if(!list.length){
+      elRanking.innerHTML = '<li class="ranking-empty">まだ記録がありません。まずは1回、最後まで見届けよう。</li>';
+      return;
+    }
+    elRanking.innerHTML = '';
+    for(var i=0;i<list.length;i++){
+      var r = list[i];
+      var li = document.createElement('li');
+      if(i === highlightAt) li.className = 'current';
+      var dateStr = r.at ? new Date(r.at).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) : '';
+      li.innerHTML = '<span class="rank">#' + (i+1) + '</span>' +
+        '<span class="rpop">' + fmtNum(r.maxPop) + ' 匹</span>' +
+        '<span class="rmeta">' + formatDuration(r.survived) + ' ・ ' + dateStr + '</span>';
+      elRanking.appendChild(li);
+    }
   }
   var RARITY_LABEL = {common:'コモン', rare:'レア', epic:'激レア'};
   var CATEGORIES = ['基本','経営','対策','やり込み'];
@@ -1809,6 +1898,12 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     var prevBest = loadBestRecord();
     if(!prevBest || state.maxPop > prevBest.maxPop) isNewBest = true;
     saveBestRecord({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned});
+    var historyList = addHistoryEntry({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: Date.now()});
+    var rankIdx = -1;
+    for(var hi=0; hi<historyList.length; hi++){
+      if(historyList[hi].maxPop === state.maxPop){ rankIdx = hi; break; }
+    }
+    renderRanking(rankIdx);
     var rows = [
       ['最大匹数', fmtNum(state.maxPop) + ' 匹'],
       ['プレイ時間', formatDuration(elapsed)],
@@ -1818,7 +1913,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       ['捕まえた脱走猫', fmtNum(state.catchCount) + ' 匹'],
       ['避妊・去勢手術', state.neuterLevel + ' 回'],
       ['引っ越し回数', state.moveCount + ' 回'],
-      ['称号', Object.keys(unlocked).length + ' / ' + ACHIEVEMENTS.length + ' 個獲得（次回も引き継がれます）' + (state.legendary ? ' ★全制覇' : '')]
+      ['称号', Object.keys(unlocked).length + ' / ' + ACHIEVEMENTS.length + ' 個獲得（次回も引き継がれます）' + (state.legendary ? ' ★全制覇' : '')],
+      ['自己ランキング', rankIdx >= 0 ? ('#' + (rankIdx+1) + ' / ' + historyList.length) : '圏外（上位' + HISTORY_CAP + '件に入らず）']
     ];
     var html = '<div style="font-weight:700;margin-bottom:6px;">最終記録' + (isNewBest ? '<span style="color:#ffd35c;"> ★自己ベスト更新！</span>' : '') + '</div>';
     for(var r=0;r<rows.length;r++){
@@ -1881,6 +1977,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       log('これまでに獲得した称号（' + Object.keys(unlocked).length + '/' + ACHIEVEMENTS.length + '）は下の「称号」欄で確認できる。');
     }
     renderBadges();
+    renderRanking(-1);
     updateHUD();
     requestAnimationFrame(frame);
   }
