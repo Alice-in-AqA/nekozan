@@ -1182,12 +1182,12 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     var best = loadBestRecord();
     if(!best){ elBestRecord.hidden = true; return; }
     elBestRecord.hidden = false;
-    elBestRecord.textContent = '自己ベスト: 最大' + fmtNum(best.maxPop) + '匹／生存' + formatDuration(best.survived) + '／稼いだ額¥' + Math.floor(best.totalEarned).toLocaleString('ja-JP');
+    elBestRecord.textContent = '自己ベスト: 生存' + formatDuration(best.survived) + '／最大' + fmtNum(best.maxPop) + '匹／稼いだ額¥' + Math.floor(best.totalEarned).toLocaleString('ja-JP');
   }
   function saveBestRecord(entry){
     try{
       var best = loadBestRecord();
-      if(!best || entry.maxPop > best.maxPop){
+      if(!best || entry.survived > best.survived){
         localStorage.setItem(BEST_KEY, JSON.stringify(entry));
       }
     }catch(e){}
@@ -1207,7 +1207,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     try{
       var list = loadHistory();
       list.push(entry);
-      list.sort(function(a,b){ return b.maxPop - a.maxPop; });
+      list.sort(function(a,b){ return b.survived - a.survived; });
       list = list.slice(0, HISTORY_CAP);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
       return list;
@@ -1226,8 +1226,8 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       if(i === highlightAt) li.className = 'current';
       var dateStr = r.at ? new Date(r.at).toLocaleDateString('ja-JP', {month:'numeric', day:'numeric'}) : '';
       li.innerHTML = '<span class="rank">#' + (i+1) + '</span>' +
-        '<span class="rpop">' + fmtNum(r.maxPop) + ' 匹</span>' +
-        '<span class="rmeta">' + formatDuration(r.survived) + ' ・ ' + dateStr + '</span>';
+        '<span class="rpop">' + formatDuration(r.survived) + '</span>' +
+        '<span class="rmeta">最大' + fmtNum(r.maxPop) + '匹 ・ ' + dateStr + '</span>';
       elRanking.appendChild(li);
     }
   }
@@ -1288,12 +1288,16 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       var name = document.createElement('span');
       name.className = 'rname';
       name.textContent = r.nickname || '名無し';
-      var pop = document.createElement('span');
-      pop.className = 'rpop';
-      pop.textContent = fmtNum(r.maxPop) + ' 匹';
+      var time = document.createElement('span');
+      time.className = 'rpop';
+      time.textContent = formatDuration(r.survived);
+      var meta = document.createElement('span');
+      meta.className = 'rmeta';
+      meta.textContent = '最大' + fmtNum(r.maxPop) + '匹';
       li.appendChild(rank);
       li.appendChild(name);
-      li.appendChild(pop);
+      li.appendChild(time);
+      li.appendChild(meta);
       elGlobalRanking.appendChild(li);
     }
   }
@@ -1310,7 +1314,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       rk.fetchWorldTotal().then(function(total){
         if(total === null || total === undefined) return;
         elWorldTotal.hidden = false;
-        elWorldTotal.textContent = '🌍 世界のプレイヤーの自己ベスト合計: ' + fmtNum(total) + ' 匹（あなたの記録も含む）';
+        elWorldTotal.textContent = '🌍 世界のプレイヤーが耐えた時間の合計: ' + formatDuration(total) + '（あなたの記録も含む）';
       }).catch(function(){});
     });
   }
@@ -2380,23 +2384,24 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 
   function showResultStats(){
     var elapsed = state.startedAt ? (Date.now() - state.startedAt)/1000 : 0;
+    var runAt = Date.now();
     var isNewBest = false;
     var prevBest = loadBestRecord();
-    if(!prevBest || state.maxPop > prevBest.maxPop) isNewBest = true;
-    saveBestRecord({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned});
-    var historyList = addHistoryEntry({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: Date.now()});
+    if(!prevBest || elapsed > prevBest.survived) isNewBest = true;
+    saveBestRecord({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: runAt});
+    var historyList = addHistoryEntry({maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: runAt});
     var rankIdx = -1;
     for(var hi=0; hi<historyList.length; hi++){
-      if(historyList[hi].maxPop === state.maxPop){ rankIdx = hi; break; }
+      if(historyList[hi].at === runAt){ rankIdx = hi; break; }
     }
     renderRanking(rankIdx);
-    lastResultEntry = {maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: Date.now()};
+    lastResultEntry = {maxPop: state.maxPop, survived: elapsed, totalEarned: state.totalEarned, at: runAt};
     lastRankIdx = rankIdx;
     submitGlobalScore(lastResultEntry);
     elBtnShareImage.hidden = false;
     var rows = [
+      ['耐えた時間', formatDuration(elapsed)],
       ['最大匹数', fmtNum(state.maxPop) + ' 匹'],
-      ['プレイ時間', formatDuration(elapsed)],
       ['稼いだ総額', fmtYen(state.totalEarned)],
       ['名付けた数', fmtNum(state.named) + ' 匹'],
       ['なでた回数', fmtNum(state.petCount) + ' 回'],
@@ -2468,17 +2473,17 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     c.font = '18px sans-serif';
     c.fillText('プレイ記録', cw/2, 116);
 
+    var elapsedNow = state.startedAt ? (Date.now() - state.startedAt)/1000 : 0;
     c.fillStyle = '#f4e8d8';
     c.font = 'bold 84px sans-serif';
-    c.fillText(fmtNum(state.maxPop) + ' 匹', cw/2, 236);
+    c.fillText(formatDuration(elapsedNow), cw/2, 236);
 
     c.fillStyle = '#ffb6c1';
     c.font = '17px sans-serif';
-    c.fillText('最大匹数', cw/2, 284);
+    c.fillText('耐えた時間', cw/2, 284);
 
-    var elapsedNow = state.startedAt ? (Date.now() - state.startedAt)/1000 : 0;
     var statCols = [
-      ['プレイ時間', formatDuration(elapsedNow)],
+      ['最大匹数', fmtNum(state.maxPop) + ' 匹'],
       ['称号', Object.keys(unlocked).length + ' / ' + ACHIEVEMENTS.length],
       ['自己ランキング', lastRankIdx >= 0 ? ('#' + (lastRankIdx+1)) : '圏外']
     ];
@@ -2638,14 +2643,14 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
       var user = await authReady;
       var ref = doc(db, 'scores', user.uid);
       var snap = await getDoc(ref);
-      if(!snap.exists() || entry.maxPop > snap.data().maxPop){
+      if(!snap.exists() || entry.survived > snap.data().survived){
         await setDoc(ref, entry);
         return true;
       }
       return false;
     },
     async fetchTop(n){
-      var q = query(collection(db, 'scores'), orderBy('maxPop', 'desc'), limit(n || 20));
+      var q = query(collection(db, 'scores'), orderBy('survived', 'desc'), limit(n || 20));
       var snaps = await getDocs(q);
       var list = [];
       snaps.forEach(function(d){ list.push(d.data()); });
@@ -2653,7 +2658,7 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
     },
     async fetchWorldTotal(){
       var q = query(collection(db, 'scores'));
-      var snap = await getAggregateFromServer(q, { total: sum('maxPop') });
+      var snap = await getAggregateFromServer(q, { total: sum('survived') });
       return snap.data().total;
     }
   };
