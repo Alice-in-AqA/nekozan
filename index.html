@@ -377,6 +377,33 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
   margin-top:-6px;
 }
 
+.keymap-panel{
+  padding:12px 14px;
+}
+.keymap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.key-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12.5px;
+}
+.key-row .key{
+  font-family:'Courier New',monospace;
+  font-size:11px;
+  background:var(--bg);
+  border:1px solid var(--panel-line);
+  border-radius:6px;
+  padding:2px 8px;
+  min-width:3.2em;
+  text-align:center;
+  flex-shrink:0;
+  color:var(--accent);
+}
+
 .speed-row{
   display:flex;
   align-items:center;
@@ -571,10 +598,21 @@ button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
         <div class="overflow-badge" id="overflowBadge"></div>
       </div>
       <div class="hint" id="roomHint">🐾 猫をクリックでなでる／脱走した猫は出口に着く前にクリックで捕獲／✨が出たら見逃さずに</div>
-      <div class="hint">⌨️ WASDで移動・Spaceでなでる/捕獲・Q:SNS投稿・E:カフェ・F:去勢/避妊・R:防音材</div>
     </div>
 
     <div class="game-controls">
+      <div class="panel keymap-panel">
+        <h2>操作方法</h2>
+        <div class="keymap">
+          <div class="key-row"><span class="key">W A S D</span><span>カーソル移動</span></div>
+          <div class="key-row"><span class="key">Space</span><span>なでる／脱走猫を捕獲</span></div>
+          <div class="key-row"><span class="key">Q</span><span>猫SNSに投稿</span></div>
+          <div class="key-row"><span class="key">E</span><span>カフェを開業／投資</span></div>
+          <div class="key-row"><span class="key">F</span><span>避妊・去勢手術</span></div>
+          <div class="key-row"><span class="key">R</span><span>防音材を追加</span></div>
+        </div>
+      </div>
+
       <div class="speed-row">
         <span>再生速度</span>
         <button class="speedBtn active" data-speed="1">×1</button>
